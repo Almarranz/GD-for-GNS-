@@ -12,15 +12,16 @@ import numpy as np
 from astropy.io import fits
 import os
 from astropy.table import Table
+import sys
 # pruebas = '/Users/amartinez/Desktop/for_people/for_Herve/pruebas/'
 
 field = 20
 target_size = 2048
 # %%
-for chip in range(1, 5):
+for chip in range(3, 5):
     folder = '/home/data/alvaro/gns_test/F%s/SWarp/outputs/chip%s/'%(field, chip)
     # folder = pruebas
-    fits_files = [f for f in sorted(os.listdir(folder)) if f.endswith('.fits') and f.startswith('70_pointings_f%s_c%s' % (field, chip)) or f.endswith('weight.fits') and f.startswith('70_pointings_f%s_c%s' % (field, chip))]
+    fits_files = [f for f in sorted(os.listdir(folder)) if f.endswith('.fits') and f.startswith('%s_image_c%s' % (field, chip)) or f.endswith('weight.fits') and f.startswith('%s_image_c%s' % (field, chip))]
     
     for nf, f_file in enumerate(fits_files):
         hdul = fits.open(folder + f_file)
@@ -73,14 +74,15 @@ for chip in range(1, 5):
         
         print(f'New axes: {hdul[0].header["NAXIS1"]}, {hdul[0].header["NAXIS2"]}')
         print(30 * '_')
+
 # %%       
-pruebas = '/home/data/alvaro/gns_test/F%s/pruebas/'%(field)
-sl = Table.read(pruebas + 'cubes_and_slices.txt', format = 'ascii')
+cubes_list = '/home/data/alvaro/gns_test/F%s/cubes_aligned/'%(field)
+sl = Table.read(cubes_list + '%s_cubes_and_slices.txt'%(field), format = 'ascii')
 
 ax_sz = target_size 
 
 # chip = 1
-for chip in range(1,5):
+for chip in range(3,5):
     folder = '/home/data/alvaro/gns_test/F%s/SWarp/outputs/chip%s/'%(field, chip)
     gd_folder = '/home/data/GNS/2021/H/%s/cubes_gd/chip%s/'%(field, chip)
     
@@ -93,9 +95,9 @@ for chip in range(1,5):
         cube = np.empty((slices, ax_sz, ax_sz))
         cube_w = np.empty((slices, ax_sz, ax_sz))
         for j in range(slices):
-            hdul = fits.open(folder + 'PADDED_70_pointings_f20_c%s.%04d.resamp.fits'%(chip,idex))
-            hdul_w = fits.open(folder + 'PADDED_70_pointings_f20_c%s.%04d.resamp.weight.fits'%(chip,idex))
-            print('PADDED_70_pointings_f20_c%s.%04d.resamp.fits'%(chip,idex))
+            hdul = fits.open(folder + 'PADDED_%s_image_c%s.%04d.resamp.fits'%(field,chip,idex))
+            hdul_w = fits.open(folder + 'PADDED_%s_image_c%s.%04d.resamp.weight.fits'%(field,chip,idex))
+            print('PADDED_%s_image_c%s.%04d.resamp.fits'%(field,chip,idex))
             cube[j,:,:] = hdul[0].data    
             cube_w[j,:,:] = hdul_w[0].data    
             idex +=1

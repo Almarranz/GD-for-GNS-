@@ -21,6 +21,8 @@ import matplotlib.pyplot as plt
 from astropy.wcs.utils import fit_wcs_from_points
 import shutil
 import gzip
+import subprocess
+
 # %
 # %%
 field = 20
@@ -33,7 +35,7 @@ sf_folder = '/home/data/GNS/2021/H/%s/data/'%(field)
 clean = '/home/data/GNS/2021/H/%s/cleaned/'%(field)
 VVV_fol = '/home/data/VVV/'
 ims = '/home/data/GNS/2021/H/20/ims/'
-
+# %%
 ###########IMPORTANT################
 # list of raw images and raw images are in /home/data/raw/GNS_2/H/Field/20
 # list of cleand cubes is in '/home/data/GNS/2021/H/20/cleaned'
@@ -49,32 +51,13 @@ lista = open(folder + 'list.txt', 'r')
 # %%
 hdu_m = fits.open(ims + 'mask.fits')
 data_m = hdu_m[0].data
+dic_sl = {}
 
-primary_hdu_c1 = fits.PrimaryHDU()
-list_of_hdu_c1 = [primary_hdu_c1]
+image_i = 0
 
-primary_hdu_c2 = fits.PrimaryHDU()
-list_of_hdu_c2 = [primary_hdu_c2]
 
-primary_hdu_c3 = fits.PrimaryHDU()
-list_of_hdu_c3 = [primary_hdu_c3]
 
-primary_hdu_c4 = fits.PrimaryHDU()
-list_of_hdu_c4 = [primary_hdu_c4]
-
-# Preparing headers for the masks
-primary_hdu_m1 = fits.PrimaryHDU()
-list_of_hdu_m1 = [primary_hdu_m1]
-
-primary_hdu_m2 = fits.PrimaryHDU()
-list_of_hdu_m2 = [primary_hdu_m2]
-
-primary_hdu_m3 = fits.PrimaryHDU()
-list_of_hdu_m3 = [primary_hdu_m3]
-
-primary_hdu_m4 = fits.PrimaryHDU()
-list_of_hdu_m4 = [primary_hdu_m4]
-with open(pruebas + 'cubes_and_slices.txt','w') as fil:
+with open(cubes_aligned + '%s_cubes_and_slices.txt'%(field),'w') as fil:
     fil.write('Cube_id number_of_slices\n')
 for li,l in enumerate(lista):
     
@@ -96,6 +79,13 @@ for li,l in enumerate(lista):
     cube[0].header = orig_header
     cube.flush()   
     image_data = cube[0].data
+    
+    if li>0:
+        image_i = image_i + dic_sl[f'l{li-1}']
+        print(30*'+',f'\nThe index is {image_i}\n',30*'+')
+    
+    
+    
     wcs = WCS(cube[0].header, naxis = 2)
     naxis1 = cube[0].header['NAXIS1']
     naxis2 = cube[0].header['NAXIS2']
@@ -104,7 +94,7 @@ for li,l in enumerate(lista):
     
     print(f'Cube {li+1} has %s slices'%(cube[0].header['NAXIS3']))
     
-    with open(pruebas + 'cubes_and_slices.txt','a') as fil:
+    with open(cubes_aligned + '%s_cubes_and_slices.txt'%(field),'a') as fil:
         fil.write('%s %s\n'%(li+1,cube[0].header['NAXIS3']))
     
     use_idx = vvv['J']<900
@@ -137,9 +127,8 @@ for li,l in enumerate(lista):
     xh = (max(x_vvv) + min(x_vvv))/2
     yh = (max(y_vvv) + min(y_vvv))/2
     #crop list for each chip
-    for chip in range(1,2):
-        primary_hdu = fits.PrimaryHDU()
-        list_of_hdu = [primary_hdu]
+    for chip in range(3,5):
+        
         if (chip == 1):
             idx = np.nonzero((x_vvv < xh) & (y_vvv < yh))
         elif (chip == 2):
@@ -204,7 +193,7 @@ for li,l in enumerate(lista):
         indices = np.array(indices)
         
         # Print or return the indices
-        print(indices)
+        print('Comon stars in the C%s = %s'%(chip,len(indices)))
         vvv_com = vvv_overlap[idx][indices]
         vvv_com.write(pruebas + 'vvv_common_c%s.txt'%(chip), format = 'ascii', overwrite = True)
         
@@ -223,7 +212,7 @@ for li,l in enumerate(lista):
         header = cube[0].header  # Get the header from the corresponding extension
         m_cube = np.stack([data_m]*cube[0].header['NAXIS3'], axis = 0)
         for i in range(cube[0].header['NAXIS3']):
-            
+            image_i +=1
             # Get the data and header for each image (extension)
             if chip ==1:
                 data = data_cube[i][0:2048,0:2048]# Use i+1 since the first is the PrimaryHDU
@@ -237,16 +226,10 @@ for li,l in enumerate(lista):
                     if card.keyword in header:
                         header[card.keyword] = card.value
 
-                # Create an ImageHDU with the data and the corresponding header
-                image_hdu = fits.ImageHDU(data=data, header=header)
-                m_hdu =     fits.ImageHDU(data = m_data, header = header)
-                
-                # Add the new ImageHDU to the HDUList
-                list_of_hdu_c1.append(image_hdu)
-                list_of_hdu_m1.append(m_hdu)
-                # Create the HDUList object
-                combined_hdul_c1 = fits.HDUList(list_of_hdu_c1)
-                combined_hdul_m1 = fits.HDUList(list_of_hdu_m1)
+                fits.writeto(cubes_aligned + '%s_image_c%s.%04d.fits'%(field,chip,image_i),
+                             data = data, header = header, overwrite= True)
+                fits.writeto(cubes_aligned + '%s_mask_c%s.%04d.fits'%(field,chip,image_i),
+                             data = m_data, header = header, overwrite= True)
             if chip == 2:
                 data = data_cube[i][0:2048,2048:]
                 wcs_header = wcs_new.to_header()
@@ -260,17 +243,10 @@ for li,l in enumerate(lista):
                     if card.keyword in header:
                         header[card.keyword] = card.value
 
-                # Create an ImageHDU with the data and the corresponding header
-                # image_hdu = fits.ImageHDU(data=data, header=wcs_header)
-                image_hdu = fits.ImageHDU(data=data, header=header)
-                m_hdu =     fits.ImageHDU(data = m_data, header = header)
-                # Add the new ImageHDU to the HDUList
-                list_of_hdu_c2.append(image_hdu)
-                list_of_hdu_m2.append(m_hdu)
-
-                # Create the HDUList object
-                combined_hdul_c2 = fits.HDUList(list_of_hdu_c2)
-                combined_hdul_m2 = fits.HDUList(list_of_hdu_m2)
+                fits.writeto(cubes_aligned + '%s_image_c%s.%04d.fits'%(field,chip,image_i),
+                             data = data, header = header, overwrite= True)
+                fits.writeto(cubes_aligned + '%s_mask_c%s.%04d.fits'%(field,chip,image_i),
+                             data = m_data, header = header, overwrite= True)
                 
             if chip == 3:
                 data = data_cube[i][2048:,2048:]
@@ -285,18 +261,10 @@ for li,l in enumerate(lista):
                     if card.keyword in header:
                         header[card.keyword] = card.value
 
-                # Create an ImageHDU with the data and the corresponding header
-                # image_hdu = fits.ImageHDU(data=data, header=wcs_header)
-                image_hdu = fits.ImageHDU(data=data, header=header)
-                m_hdu = fits.ImageHDU(data=m_data, header=header)
-                
-                # Add the new ImageHDU to the HDUList
-                list_of_hdu_c3.append(image_hdu)
-                list_of_hdu_m3.append(m_hdu)
-
-                # Create the HDUList object
-                combined_hdul_c3 = fits.HDUList(list_of_hdu_c3)
-                combined_hdul_m3 = fits.HDUList(list_of_hdu_m3)
+                fits.writeto(cubes_aligned + '%s_image_c%s.%04d.fits'%(field,chip,image_i),
+                             data = data, header = header, overwrite= True)
+                fits.writeto(cubes_aligned + '%s_mask_c%s.%04d.fits'%(field,chip,image_i),
+                             data = m_data, header = header, overwrite= True)
                 
                
             if chip == 4:
@@ -314,37 +282,143 @@ for li,l in enumerate(lista):
 
                 # Create an ImageHDU with the data and the corresponding header
                 # image_hdu = fits.ImageHDU(data=data, header=wcs_header)
-                image_hdu = fits.ImageHDU(data=data, header=header)
-                m_hdu = fits.ImageHDU(data=m_data, header=header)
-                
-                # Add the new ImageHDU to the HDUList
-                list_of_hdu_c4.append(image_hdu)
-                list_of_hdu_m4.append(m_hdu)
-
-                # Create the HDUList object
-                combined_hdul_c4 = fits.HDUList(list_of_hdu_c4)
-                combined_hdul_m4 = fits.HDUList(list_of_hdu_m4)
+                fits.writeto(cubes_aligned + '%s_image_c%s.%04d.fits'%(field,chip,image_i),
+                             data = data, header = header, overwrite= True)
+                fits.writeto(cubes_aligned + '%s_mask_c%s.%04d.fits'%(field,chip,image_i),
+                             data = m_data, header = header, overwrite= True)
+        image_i -=  cube[0].header['NAXIS3']
+    print(30*'+',f'\nAfter cube{li}, index ={image_i} \n',30*'+')
+    dic_sl['l%s'%(li)] = cube[0].header['NAXIS3']
     os.remove(clean + 'cube%s.fits'%(li+1))
+   
     # if li == 0:
     #     break    
+answer = input('Did you check the genrated cubes? \nIf yes and everthing is alright, type "y".\nOtherwise do so and elimate bad slices (see delete_bad.py')
+if answer == 'y':
+    print('Runing sextractor, scamo and SWarp')
+else:
+    sys.exit('Stoping compilation')
+# %%
+#MISSFITS
+for chip in range(3,5):
+    command = ['missfits', cubes_aligned + '%s_image_c%s'%(field,chip), '-c', 'conf.missfits']
+    
+    try:
+        # Run the command
         
-        
-      
-combined_hdul_c1.writeto(cubes_aligned  +'%s_pointings_f20_c%s.fits'%(lines,1), overwrite=True)
-combined_hdul_c2.writeto(cubes_aligned  +'%s_pointings_f20_c%s.fits'%(lines,2), overwrite=True)
-combined_hdul_c3.writeto(cubes_aligned  +'%s_pointings_f20_c%s.fits'%(lines,3), overwrite=True)
-combined_hdul_c4.writeto(cubes_aligned  +'%s_pointings_f20_c%s.fits'%(lines,4), overwrite=True)
-
-# combined_hdul_m1.writeto(cubes_aligned  +'MASK_%s_pointings_f20_c%s.fits'%(lines,1), overwrite=True)
-combined_hdul_m2.writeto(cubes_aligned  +'MASK_%s_pointings_f20_c%s.fits'%(lines,2), overwrite=True)
-combined_hdul_m3.writeto(cubes_aligned  +'MASK_%s_pointings_f20_c%s.fits'%(lines,3), overwrite=True)
-combined_hdul_m4.writeto(cubes_aligned  +'MASK_%s_pointings_f20_c%s.fits'%(lines,4), overwrite=True)
-
-print('FITS file F%sc%s created.'%(field, chip))
+        result = subprocess.run(command, check=True)
+        # Print standard output and error
+        print("Command Output:")
+        print(result.stdout)
+        print("Command Error (if any):")
+        print(result.stderr)
+    
+    except subprocess.CalledProcessError as e:
+        # Handle errors
+        print(f"Error: {e}")
+        print(f"Standard Output: {e.stdout}")
+        print(f"Standard Error: {e.stderr}")
     
 
+for chip in range(3,5):
+    command = ['missfits', cubes_aligned + '%s_mask_c%s'%(field,chip), '-c', 'conf.missfits']
+    
+    try:
+        # Run the command
         
+        result = subprocess.run(command, check=True)
+        # Print standard output and error
+        print("Command Output:")
+        print(result.stdout)
+        print("Command Error (if any):")
+        print(result.stderr)
+    
+    except subprocess.CalledProcessError as e:
+        # Handle errors
+        print(f"Error: {e}")
+        print(f"Standard Output: {e.stdout}")
+        print(f"Standard Error: {e.stderr}")
+# %%           
+sex_folder = '/home/data/alvaro/gns_test/F%s/sextractor/'%(field)
+scamp_folder = '/home/data/alvaro/gns_test/F%s/scamp/'%(field)
+SWarp_folder = '/home/data/alvaro/gns_test/F%s/SWarp/'%(field)
+# %%
+#SOURCE-EXTRACTOR
+for chip in range(3,5):
+    command = ['source-extractor', cubes_aligned + '%s_image_c%s.fits'%(field,chip), 
+               '-c', 'default_c%s.sex'%(chip)]
+    
+    try:
+        # Run the command
         
+        # result = subprocess.run(command, cwd=f'{sex_folder}chip{chip}/',check=True, text=True, capture_output=True)
+        result = subprocess.run(command, cwd=f'{sex_folder}chip{chip}/',check=True)
         
+        # Print standard output and error
+        print("Command Output:")
+        print(result.stdout)
+        print("Command Error (if any):")
+        print(result.stderr)
+    
+    except subprocess.CalledProcessError as e:
+        # Handle errors
+        print(f"Error: {e}")
+        print(f"Standard Output: {e.stdout}")
+        print(f"Standard Error: {e.stderr}")
+# %%
+#SCAMP
+for chip in range(3,5):
+    command = ['scamp', sex_folder + 'chip%s/%s_image_c%s.cat'%(chip, field,chip), 
+                '-c', 'scamp_c%s.conf'%(chip)]
+    
+    try:
+        # Run the command
         
+        result = subprocess.run(command, cwd=f'{scamp_folder}chip{chip}/',check=True)
+        # Print standard output and error
+        print("Command Output:")
+        print(result.stdout)
+        print("Command Error (if any):")
+        print(result.stderr)
+    
+    except subprocess.CalledProcessError as e:
+        # Handle errors
+        print(f"Error: {e}")
+        print(f"Standard Output: {e.stdout}")
+        print(f"Standard Error: {e.stderr}")
+
+
+#%%
+#SWARP
+for chip in range(4,5):
+    
+    command = ['SWarp', cubes_aligned+ '%s_image_c%s.fits' %(field, chip), 
+               '-c', 'default_c%s.swarp'%(chip), '-HEADER_NAME',scamp_folder + 'chip%s/%s_image_c%s.head'%(chip,field, chip),
+               '-WEIGHT_IMAGE',cubes_aligned + '%s_mask_c%s.fits'%(field, chip)]
+    
+    try:
+        # Run the command
+        
+        result = subprocess.run(command, cwd=f'{SWarp_folder}chip{chip}/',check=True)
+        # Print standard output and error
+        print("Command Output:")
+        print(result.stdout)
+        print("Command Error (if any):")
+        print(result.stderr)
+    
+    except subprocess.CalledProcessError as e:
+        # Handle errors
+        print(f"Error: {e}")
+        print(f"Standard Output: {e.stdout}")
+        print(f"Standard Error: {e.stderr}")
+
+
+
+
+
+
+
+
+
+
         

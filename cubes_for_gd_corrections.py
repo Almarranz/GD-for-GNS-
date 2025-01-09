@@ -29,8 +29,8 @@ field = 20
 
 
 folder = '/home/data/raw/GNS_2/H/Field/%s/'%(field)
-cubes_aligned = '/home/data/alvaro/gns_test/F%s/cubes_aligned/'%(field)
-pruebas = '/home/data/alvaro/gns_test/F%s/pruebas/'%(field)
+cubes_aligned = '/home/data/alvaro/gns_gd/gns2/F%s/cubes_aligned/'%(field)
+pruebas = '/home/data/alvaro/gns_gd/gns2/F%s/pruebas/'%(field)
 sf_folder = '/home/data/GNS/2021/H/%s/data/'%(field)
 clean = '/home/data/GNS/2021/H/%s/cleaned/'%(field)
 VVV_fol = '/home/data/VVV/'
@@ -54,7 +54,7 @@ data_m = hdu_m[0].data
 dic_sl = {}
 
 image_i = 0
-
+ch_range = [1,5]
 
 
 with open(cubes_aligned + '%s_cubes_and_slices.txt'%(field),'w') as fil:
@@ -127,7 +127,7 @@ for li,l in enumerate(lista):
     xh = (max(x_vvv) + min(x_vvv))/2
     yh = (max(y_vvv) + min(y_vvv))/2
     #crop list for each chip
-    for chip in range(3,5):
+    for chip in range(ch_range[0],ch_range[1]):
         
         if (chip == 1):
             idx = np.nonzero((x_vvv < xh) & (y_vvv < yh))
@@ -293,14 +293,11 @@ for li,l in enumerate(lista):
    
     # if li == 0:
     #     break    
-answer = input('Did you check the genrated cubes? \nIf yes and everthing is alright, type "y".\nOtherwise do so and elimate bad slices (see delete_bad.py')
-if answer == 'y':
-    print('Runing sextractor, scamo and SWarp')
-else:
-    sys.exit('Stoping compilation')
+
 # %%
-#MISSFITS
-for chip in range(3,5):
+# #MISSFITS
+
+for chip in range(ch_range[0],ch_range[1]):
     command = ['missfits', cubes_aligned + '%s_image_c%s'%(field,chip), '-c', 'conf.missfits']
     
     try:
@@ -318,9 +315,10 @@ for chip in range(3,5):
         print(f"Error: {e}")
         print(f"Standard Output: {e.stdout}")
         print(f"Standard Error: {e.stderr}")
-    
 
-for chip in range(3,5):
+
+# %%
+for chip in range(ch_range[0],ch_range[1]):
     command = ['missfits', cubes_aligned + '%s_mask_c%s'%(field,chip), '-c', 'conf.missfits']
     
     try:
@@ -338,79 +336,84 @@ for chip in range(3,5):
         print(f"Error: {e}")
         print(f"Standard Output: {e.stdout}")
         print(f"Standard Error: {e.stderr}")
-# %%           
-sex_folder = '/home/data/alvaro/gns_test/F%s/sextractor/'%(field)
-scamp_folder = '/home/data/alvaro/gns_test/F%s/scamp/'%(field)
-SWarp_folder = '/home/data/alvaro/gns_test/F%s/SWarp/'%(field)
-# %%
-#SOURCE-EXTRACTOR
-for chip in range(3,5):
-    command = ['source-extractor', cubes_aligned + '%s_image_c%s.fits'%(field,chip), 
-               '-c', 'default_c%s.sex'%(chip)]
+answer = input('Did you check the generated cubes? \nIf yes and everthing is alright, type "y".\nOtherwise do so and elimate bad slices (see delete_bad.py')
+if answer == 'y':
+    print('Running sextractor, scamp and SWarp')
+else:
+    sys.exit(6*'😡'+'\nCHECK THEM!!!\n'+6*'😡')
+# # %%           
+# sex_folder = '/home/data/alvaro/gns_test/F%s/sextractor/'%(field)
+# scamp_folder = '/home/data/alvaro/gns_test/F%s/scamp/'%(field)
+# SWarp_folder = '/home/data/alvaro/gns_test/F%s/SWarp/'%(field)
+# # %%
+# #SOURCE-EXTRACTOR
+# for chip in range(3,5):
+#     command = ['source-extractor', cubes_aligned + '%s_image_c%s.fits'%(field,chip), 
+#                '-c', 'default_c%s.sex'%(chip)]
     
-    try:
-        # Run the command
+#     try:
+#         # Run the command
         
-        # result = subprocess.run(command, cwd=f'{sex_folder}chip{chip}/',check=True, text=True, capture_output=True)
-        result = subprocess.run(command, cwd=f'{sex_folder}chip{chip}/',check=True)
+#         # result = subprocess.run(command, cwd=f'{sex_folder}chip{chip}/',check=True, text=True, capture_output=True)
+#         result = subprocess.run(command, cwd=f'{sex_folder}chip{chip}/',check=True)
         
-        # Print standard output and error
-        print("Command Output:")
-        print(result.stdout)
-        print("Command Error (if any):")
-        print(result.stderr)
+#         # Print standard output and error
+#         print("Command Output:")
+#         print(result.stdout)
+#         print("Command Error (if any):")
+#         print(result.stderr)
     
-    except subprocess.CalledProcessError as e:
-        # Handle errors
-        print(f"Error: {e}")
-        print(f"Standard Output: {e.stdout}")
-        print(f"Standard Error: {e.stderr}")
-# %%
-#SCAMP
-for chip in range(3,5):
-    command = ['scamp', sex_folder + 'chip%s/%s_image_c%s.cat'%(chip, field,chip), 
-                '-c', 'scamp_c%s.conf'%(chip)]
+#     except subprocess.CalledProcessError as e:
+#         # Handle errors
+#         print(f"Error: {e}")
+#         print(f"Standard Output: {e.stdout}")
+#         print(f"Standard Error: {e.stderr}")
+# # %%
+# #SCAMP
+# for chip in range(3,5):
+#     command = ['scamp', sex_folder + 'chip%s/%s_image_c%s.cat'%(chip, field,chip), 
+#                 '-c', 'scamp_c%s.conf'%(chip)]
     
-    try:
-        # Run the command
+#     try:
+#         # Run the command
         
-        result = subprocess.run(command, cwd=f'{scamp_folder}chip{chip}/',check=True)
-        # Print standard output and error
-        print("Command Output:")
-        print(result.stdout)
-        print("Command Error (if any):")
-        print(result.stderr)
+#         result = subprocess.run(command, cwd=f'{scamp_folder}chip{chip}/',check=True)
+#         # Print standard output and error
+#         print("Command Output:")
+#         print(result.stdout)
+#         print("Command Error (if any):")
+#         print(result.stderr)
     
-    except subprocess.CalledProcessError as e:
-        # Handle errors
-        print(f"Error: {e}")
-        print(f"Standard Output: {e.stdout}")
-        print(f"Standard Error: {e.stderr}")
+#     except subprocess.CalledProcessError as e:
+#         # Handle errors
+#         print(f"Error: {e}")
+#         print(f"Standard Output: {e.stdout}")
+#         print(f"Standard Error: {e.stderr}")
 
 
-#%%
-#SWARP
-for chip in range(4,5):
+# #%%
+# #SWARP
+# for chip in range(4,5):
     
-    command = ['SWarp', cubes_aligned+ '%s_image_c%s.fits' %(field, chip), 
-               '-c', 'default_c%s.swarp'%(chip), '-HEADER_NAME',scamp_folder + 'chip%s/%s_image_c%s.head'%(chip,field, chip),
-               '-WEIGHT_IMAGE',cubes_aligned + '%s_mask_c%s.fits'%(field, chip)]
+#     command = ['SWarp', cubes_aligned+ '%s_image_c%s.fits' %(field, chip), 
+#                '-c', 'default_c%s.swarp'%(chip), '-HEADER_NAME',scamp_folder + 'chip%s/%s_image_c%s.head'%(chip,field, chip),
+#                '-WEIGHT_IMAGE',cubes_aligned + '%s_mask_c%s.fits'%(field, chip)]
     
-    try:
-        # Run the command
+#     try:
+#         # Run the command
         
-        result = subprocess.run(command, cwd=f'{SWarp_folder}chip{chip}/',check=True)
-        # Print standard output and error
-        print("Command Output:")
-        print(result.stdout)
-        print("Command Error (if any):")
-        print(result.stderr)
+#         result = subprocess.run(command, cwd=f'{SWarp_folder}chip{chip}/',check=True)
+#         # Print standard output and error
+#         print("Command Output:")
+#         print(result.stdout)
+#         print("Command Error (if any):")
+#         print(result.stderr)
     
-    except subprocess.CalledProcessError as e:
-        # Handle errors
-        print(f"Error: {e}")
-        print(f"Standard Output: {e.stdout}")
-        print(f"Standard Error: {e.stderr}")
+#     except subprocess.CalledProcessError as e:
+#         # Handle errors
+#         print(f"Error: {e}")
+#         print(f"Standard Output: {e.stdout}")
+#         print(f"Standard Error: {e.stderr}")
 
 
 
